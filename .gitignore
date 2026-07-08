@@ -1,0 +1,22 @@
+# Xcode / Swift
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+*.xcworkspace/xcuserdata/
+DealBoard.xcodeproj/project.xcworkspace/xcuserdata/
+DealBoard.xcodeproj/xcuserdata/
+
+# SwiftPM
+.build/
+.swiftpm/
+
+# macOS
+.DS_Store
+
+# Misc
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
