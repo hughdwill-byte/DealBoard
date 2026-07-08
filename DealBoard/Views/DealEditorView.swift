@@ -91,12 +91,14 @@ struct DealEditorView: View {
                 PhotosPicker(selection: $photoItem, matching: .images) {
                     Label("Photo Library", systemImage: "photo")
                 }
+                .buttonStyle(.borderless) // isolate hit region from the Camera button
                 Spacer()
                 Button {
                     showingCamera = true
                 } label: {
                     Label("Camera", systemImage: "camera")
                 }
+                .buttonStyle(.borderless) // otherwise the Form row merges both taps
                 .disabled(!UIImagePickerController.isSourceTypeAvailable(.camera))
             }
             if isProcessing {
