@@ -11,6 +11,8 @@ struct DealEditorView: View {
 
     /// nil = adding a new deal; non-nil = editing an existing one.
     let deal: Deal?
+    /// When adding, pre-selects this establishment (e.g. "add another deal here").
+    var prefillEstablishment: Establishment? = nil
 
     // Editable fields
     @State private var title = ""
@@ -50,6 +52,7 @@ struct DealEditorView: View {
                 timeSection
                 establishmentSection
                 if !rawText.isEmpty { rawTextSection }
+                if !isEditing { saveAndAddSection }
             }
             .scrollContentBackground(.hidden)
             .background(Theme.background)
@@ -60,8 +63,8 @@ struct DealEditorView: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save", action: save)
-                        .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
+                    Button("Save") { save() }
+                        .disabled(!canSave)
                 }
             }
             .sheet(isPresented: $showingCamera) {
@@ -184,6 +187,30 @@ struct DealEditorView: View {
         }
     }
 
+    private var canSave: Bool {
+        !title.trimmingCharacters(in: .whitespaces).isEmpty && !selectedDays.isEmpty
+    }
+
+    /// Save this deal and immediately start another at the same place — the quick
+    /// way to enter e.g. steak Tue, parma Wed, pasta Thu for one establishment.
+    private var saveAndAddSection: some View {
+        Section {
+            Button {
+                save(keepGoing: true)
+            } label: {
+                Label("Save & add another here", systemImage: "plus.square.on.square")
+                    .frame(maxWidth: .infinity)
+            }
+            .disabled(!canSave)
+        } footer: {
+            if establishment != nil {
+                Text("Keeps \(establishment!.name) and the photo; clears the day, title and price for the next deal.")
+            } else {
+                Text("Saves this deal and keeps the photo so you can add another straight away.")
+            }
+        }
+    }
+
     private var rawTextSection: some View {
         Section("Extracted text") {
             TextField("Raw text", text: $rawText, axis: .vertical)
@@ -196,8 +223,13 @@ struct DealEditorView: View {
     // MARK: Load / Save
 
     private func loadExisting() {
-        guard let deal, !isEditingLoaded else { return }
+        guard !isEditingLoaded else { return }
         isEditingLoaded = true
+        guard let deal else {
+            // New deal — carry over a pre-selected establishment if given.
+            establishment = prefillEstablishment
+            return
+        }
         title = deal.title
         keyPoints = deal.keyPoints
         rawText = deal.rawText
@@ -214,7 +246,7 @@ struct DealEditorView: View {
     }
     @State private var isEditingLoaded = false
 
-    private func save() {
+    private func save(keepGoing: Bool = false) {
         // Persist the photo (if newly picked) and clean up any replaced file.
         var filename = existingFilename
         if let image, existingFilename == nil {
@@ -241,7 +273,17 @@ struct DealEditorView: View {
         target.establishment = establishment
 
         Haptics.success()
-        dismiss()
+
+        if keepGoing {
+            // Ready the form for the next deal at the same place: keep the
+            // establishment and photo, clear the per-deal fields.
+            title = ""; keyPoints = ""; price = ""; notes = ""
+            selectedDays = [Weekday.today.rawValue]
+            hasTime = false
+            existingFilename = nil  // next save writes its own copy of the photo
+        } else {
+            dismiss()
+        }
     }
 
     // MARK: Time <-> minutes helpers

@@ -8,6 +8,7 @@ struct EstablishmentsView: View {
 
     @State private var editing: Establishment?
     @State private var showingNew = false
+    @State private var addingDealFor: Establishment?
 
     var body: some View {
         NavigationStack {
@@ -39,9 +40,23 @@ struct EstablishmentsView: View {
                                 }
                             }
                             .listRowBackground(Theme.card)
+                            .swipeActions(edge: .leading) {
+                                Button { addingDealFor = place } label: {
+                                    Label("Add deal", systemImage: "plus")
+                                }
+                                .tint(Theme.accent)
+                            }
                             .swipeActions {
                                 Button(role: .destructive) { delete(place) } label: {
                                     Label("Delete", systemImage: "trash")
+                                }
+                            }
+                            .contextMenu {
+                                Button { addingDealFor = place } label: {
+                                    Label("Add deal here", systemImage: "plus")
+                                }
+                                Button { editing = place } label: {
+                                    Label("Edit place", systemImage: "pencil")
                                 }
                             }
                         }
@@ -59,6 +74,7 @@ struct EstablishmentsView: View {
             }
             .sheet(item: $editing) { EstablishmentEditorView(establishment: $0) }
             .sheet(isPresented: $showingNew) { EstablishmentEditorView() }
+            .sheet(item: $addingDealFor) { DealEditorView(deal: nil, prefillEstablishment: $0) }
         }
         .tint(Theme.accent)
     }
