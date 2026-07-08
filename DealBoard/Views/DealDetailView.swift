@@ -34,6 +34,9 @@ struct DealDetailView: View {
                 }
 
                 infoRow(symbol: "calendar", text: deal.weekdays.weekdaySummary)
+                if let time = deal.timeSummary {
+                    infoRow(symbol: "clock", text: time)
+                }
 
                 if !deal.keyPoints.isEmpty {
                     section("Key points") {

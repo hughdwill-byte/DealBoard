@@ -106,9 +106,17 @@ struct DealCardView: View {
                             .foregroundStyle(Theme.accent)
                     }
                 }
-                Text(deal.weekdays.weekdaySummary)
-                    .font(.caption)
-                    .foregroundStyle(Theme.secondaryText)
+                HStack(spacing: 6) {
+                    Text(deal.weekdays.weekdaySummary)
+                    if let time = deal.timeSummary {
+                        Text("·")
+                        Label(time, systemImage: "clock")
+                            .labelStyle(.titleAndIcon)
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(Theme.secondaryText)
+                .lineLimit(1)
             }
             Spacer(minLength: 0)
         }

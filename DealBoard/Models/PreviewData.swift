@@ -26,11 +26,23 @@ enum PreviewData {
             establishment: cantina
         ))
         ctx.insert(Deal(
-            title: "Half-price Wine Wednesday",
+            title: "Happy Hour",
+            keyPoints: "$6 house wine & draft",
+            dealType: .drink,
+            weekdays: [4],
+            price: "$6",
+            startMinutes: 16 * 60,      // 4:00 PM
+            endMinutes: 18 * 60,        // 6:00 PM
+            establishment: vine
+        ))
+        // Same place, later time — demonstrates multiple deals per establishment.
+        ctx.insert(Deal(
+            title: "Late-night Half-price Bottles",
             keyPoints: "50% off all bottles",
             dealType: .drink,
             weekdays: [4],
             price: "50% off",
+            startMinutes: 21 * 60,      // 9:00 PM
             establishment: vine
         ))
         ctx.insert(Deal(

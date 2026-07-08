@@ -22,6 +22,11 @@ struct DealEditorView: View {
     @State private var notes = ""
     @State private var establishment: Establishment?
 
+    // Optional time-of-day window
+    @State private var hasTime = false
+    @State private var startTime = DealEditorView.defaultTime(hour: 17)
+    @State private var endTime = DealEditorView.defaultTime(hour: 19)
+
     // Photo / OCR
     @State private var image: UIImage?
     @State private var existingFilename: String?
@@ -42,6 +47,7 @@ struct DealEditorView: View {
                 photoSection
                 detailsSection
                 daysSection
+                timeSection
                 establishmentSection
                 if !rawText.isEmpty { rawTextSection }
             }
@@ -146,6 +152,22 @@ struct DealEditorView: View {
         }
     }
 
+    private var timeSection: some View {
+        Section {
+            Toggle("Specific times", isOn: $hasTime.animation())
+            if hasTime {
+                DatePicker("Starts", selection: $startTime, displayedComponents: .hourAndMinute)
+                DatePicker("Ends", selection: $endTime, displayedComponents: .hourAndMinute)
+            }
+        } header: {
+            Text("Time")
+        } footer: {
+            Text(hasTime
+                 ? "For a place with more than one deal at different times, add each as its own deal."
+                 : "Leave off for all-day deals.")
+        }
+    }
+
     private var establishmentSection: some View {
         Section("Establishment") {
             Button {
@@ -186,6 +208,9 @@ struct DealEditorView: View {
         establishment = deal.establishment
         existingFilename = deal.imageFilename
         image = ImageStore.load(deal.imageFilename)
+        hasTime = deal.startMinutes != nil || deal.endMinutes != nil
+        if let s = deal.startMinutes { startTime = Self.time(fromMinutes: s) }
+        if let e = deal.endMinutes { endTime = Self.time(fromMinutes: e) }
     }
     @State private var isEditingLoaded = false
 
@@ -210,11 +235,26 @@ struct DealEditorView: View {
         target.weekdays = Array(selectedDays).sorted()
         target.price = price.isEmpty ? nil : price
         target.notes = notes.isEmpty ? nil : notes
+        target.startMinutes = hasTime ? Self.minutes(from: startTime) : nil
+        target.endMinutes = hasTime ? Self.minutes(from: endTime) : nil
         target.imageFilename = filename
         target.establishment = establishment
 
         Haptics.success()
         dismiss()
+    }
+
+    // MARK: Time <-> minutes helpers
+
+    static func defaultTime(hour: Int) -> Date {
+        Calendar.current.date(from: DateComponents(hour: hour, minute: 0)) ?? Date()
+    }
+    static func time(fromMinutes m: Int) -> Date {
+        Calendar.current.date(from: DateComponents(hour: m / 60, minute: m % 60)) ?? Date()
+    }
+    static func minutes(from date: Date) -> Int {
+        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return (c.hour ?? 0) * 60 + (c.minute ?? 0)
     }
 
     // MARK: Photo handling

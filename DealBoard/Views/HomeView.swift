@@ -12,10 +12,13 @@ struct HomeView: View {
     @State private var showingAdd = false
 
     private var deals: [Deal] {
-        allDeals.filter { deal in
-            deal.weekdays.contains(selectedDay) &&
-            (typeFilter == nil || deal.dealType == typeFilter)
-        }
+        allDeals
+            .filter { deal in
+                deal.weekdays.contains(selectedDay) &&
+                (typeFilter == nil || deal.dealType == typeFilter)
+            }
+            // Earlier-in-the-day deals first; all-day deals (no start) sort last.
+            .sorted { ($0.startMinutes ?? .max, $0.title) < ($1.startMinutes ?? .max, $1.title) }
     }
 
     var body: some View {
