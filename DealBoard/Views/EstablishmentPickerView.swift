@@ -21,23 +21,25 @@ struct EstablishmentPickerView: View {
     var body: some View {
         NavigationStack {
             List {
-                if coordinate != nil {
-                    candidatesSection
-                }
-                allSection
                 Section {
+                    Button {
+                        showingNewEstablishment = true
+                    } label: {
+                        Label("Add new establishment", systemImage: "plus.circle")
+                            .fontWeight(.semibold)
+                    }
                     Button {
                         selection = nil
                         dismiss()
                     } label: {
                         Label("None", systemImage: "nosign")
-                    }
-                    Button {
-                        showingNewEstablishment = true
-                    } label: {
-                        Label("Add new establishment", systemImage: "plus.circle")
+                            .foregroundStyle(Theme.secondaryText)
                     }
                 }
+                if coordinate != nil {
+                    candidatesSection
+                }
+                allSection
             }
             .navigationTitle("Establishment")
             .navigationBarTitleDisplayMode(.inline)

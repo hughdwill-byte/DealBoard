@@ -46,27 +46,25 @@ struct WeekdayChips: View {
     var singleSelect = false
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(Weekday.allCases) { day in
-                    let isOn = selection.contains(day.rawValue)
-                    Button {
-                        toggle(day.rawValue)
-                    } label: {
-                        Text(singleSelect ? day.short : day.narrow)
-                            .font(.subheadline.weight(.semibold))
-                            .frame(minWidth: singleSelect ? 44 : 34, minHeight: 34)
-                            .padding(.horizontal, 6)
-                            .background(isOn ? Theme.accent : Theme.secondaryBackground, in: Capsule())
-                            .foregroundStyle(isOn ? Color.white : Theme.text)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(day.full)
-                    .accessibilityAddTraits(isOn ? .isSelected : [])
+        // All seven days share the width equally, so nothing scrolls off-screen.
+        HStack(spacing: 5) {
+            ForEach(Weekday.allCases) { day in
+                let isOn = selection.contains(day.rawValue)
+                Button {
+                    toggle(day.rawValue)
+                } label: {
+                    Text(day.narrow)
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity, minHeight: 36)
+                        .background(isOn ? Theme.accent : Theme.secondaryBackground, in: Capsule())
+                        .foregroundStyle(isOn ? Color.white : Theme.text)
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel(day.full)
+                .accessibilityAddTraits(isOn ? .isSelected : [])
             }
-            .padding(.horizontal)
         }
+        .padding(.horizontal)
     }
 
     private func toggle(_ day: Int) {
@@ -84,45 +82,56 @@ struct WeekdayChips: View {
 struct DealCardView: View {
     let deal: Deal
 
+    /// Establishment name is the headline; the deal title becomes the subtitle.
+    private var headline: String {
+        if let name = deal.establishment?.name, !name.isEmpty { return name }
+        return deal.title.isEmpty ? "Untitled deal" : deal.title
+    }
+    private var subtitle: String? {
+        guard deal.establishment?.name.isEmpty == false else { return nil }
+        return deal.title.isEmpty ? nil : deal.title
+    }
+
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             thumbnail
-            VStack(alignment: .leading, spacing: 4) {
-                Text(deal.title.isEmpty ? "Untitled deal" : deal.title)
-                    .font(.headline)
-                    .foregroundStyle(Theme.text)
-                    .lineLimit(2)
-                if let name = deal.establishment?.name, !name.isEmpty {
-                    Label(name, systemImage: "mappin.and.ellipse")
-                        .font(.subheadline)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(headline)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.text)
+                        .lineLimit(1)
+                    Spacer(minLength: 4)
+                    if let price = deal.price, !price.isEmpty {
+                        Text(price)
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(Theme.accent)
+                            .lineLimit(1)
+                    }
+                }
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.footnote)
                         .foregroundStyle(Theme.secondaryText)
                         .lineLimit(1)
                 }
-                HStack(spacing: 8) {
-                    TypeBadge(type: deal.dealType)
-                    if let price = deal.price, !price.isEmpty {
-                        Text(price)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(Theme.accent)
-                    }
-                }
                 HStack(spacing: 6) {
+                    Image(systemName: deal.dealType.symbol)
+                        .foregroundStyle(deal.dealType.accent)
                     Text(deal.weekdays.weekdaySummary)
                     if let time = deal.timeSummary {
                         Text("·")
-                        Label(time, systemImage: "clock")
-                            .labelStyle(.titleAndIcon)
+                        Text(time)
                     }
                 }
-                .font(.caption)
+                .font(.caption2)
                 .foregroundStyle(Theme.secondaryText)
                 .lineLimit(1)
             }
-            Spacer(minLength: 0)
         }
-        .padding(12)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.secondaryBackground, lineWidth: 1))
+        .padding(10)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.secondaryBackground, lineWidth: 1))
     }
 
     @ViewBuilder
@@ -131,12 +140,12 @@ struct DealCardView: View {
             Image(uiImage: image)
                 .resizable()
                 .scaledToFill()
-                .frame(width: 64, height: 64)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .frame(width: 50, height: 50)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
         } else {
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 10)
                 .fill(deal.dealType.accent.opacity(0.15))
-                .frame(width: 64, height: 64)
+                .frame(width: 50, height: 50)
                 .overlay(Image(systemName: deal.dealType.symbol).foregroundStyle(deal.dealType.accent))
         }
     }
