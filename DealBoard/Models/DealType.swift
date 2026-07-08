@@ -6,6 +6,7 @@ enum DealType: String, Codable, CaseIterable, Identifiable {
     case food
     case drink
     case both
+    case other
 
     var id: String { rawValue }
 
@@ -14,6 +15,7 @@ enum DealType: String, Codable, CaseIterable, Identifiable {
         case .food: return "Food"
         case .drink: return "Drink"
         case .both: return "Food & Drink"
+        case .other: return "Other"
         }
     }
 
@@ -22,6 +24,7 @@ enum DealType: String, Codable, CaseIterable, Identifiable {
         case .food: return "fork.knife"
         case .drink: return "wineglass"
         case .both: return "fork.knife.circle"
+        case .other: return "sparkles"
         }
     }
 
@@ -31,6 +34,7 @@ enum DealType: String, Codable, CaseIterable, Identifiable {
         case .food: return Theme.food
         case .drink: return Theme.drink
         case .both: return Theme.both
+        case .other: return Theme.other
         }
     }
 }

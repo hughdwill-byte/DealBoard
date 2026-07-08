@@ -12,8 +12,10 @@ enum PreviewData {
         )
         let ctx = container.mainContext
 
-        let cantina = Establishment(name: "El Corazón Cantina", address: "12 Market St")
-        let vine = Establishment(name: "The Old Vine", address: "8 Harbour Rd")
+        let cantina = Establishment(name: "El Corazón Cantina",
+                                    specials: "Cheap tacos & margaritas", address: "12 Market St")
+        let vine = Establishment(name: "The Old Vine",
+                                 specials: "£5 pints, half-price wine", address: "8 Harbour Rd")
         ctx.insert(cantina)
         ctx.insert(vine)
 
@@ -51,6 +53,15 @@ enum PreviewData {
             dealType: .both,
             weekdays: [1, 7],
             price: "$35",
+            establishment: vine
+        ))
+        // Same night as Happy Hour — an "Other" event, to show grouping + type.
+        ctx.insert(Deal(
+            title: "Quiz Night",
+            dealType: .other,
+            weekdays: [4],
+            otherDescription: "Trivia · teams of up to 6 · prizes",
+            startMinutes: 20 * 60,      // 8:00 PM
             establishment: vine
         ))
         return container

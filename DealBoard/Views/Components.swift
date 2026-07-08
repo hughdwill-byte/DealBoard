@@ -46,9 +46,9 @@ struct WeekdayChips: View {
     var singleSelect = false
 
     var body: some View {
-        // All seven days share the width equally, so nothing scrolls off-screen.
+        // All seven days share the width equally (Mon → Sun), nothing scrolls off.
         HStack(spacing: 5) {
-            ForEach(Weekday.allCases) { day in
+            ForEach(Weekday.mondayFirst) { day in
                 let isOn = selection.contains(day.rawValue)
                 Button {
                     toggle(day.rawValue)
@@ -78,26 +78,26 @@ struct WeekdayChips: View {
     }
 }
 
-/// Deal card: thumbnail, title, establishment, day summary, type + price.
-struct DealCardView: View {
+/// A single deal within a venue group: title, type, day, time, price and key
+/// details. The venue name is the section header, so it isn't repeated here.
+struct DealRowView: View {
     let deal: Deal
 
-    /// Establishment name is the headline; the deal title becomes the subtitle.
-    private var headline: String {
-        if let name = deal.establishment?.name, !name.isEmpty { return name }
-        return deal.title.isEmpty ? "Untitled deal" : deal.title
-    }
-    private var subtitle: String? {
-        guard deal.establishment?.name.isEmpty == false else { return nil }
-        return deal.title.isEmpty ? nil : deal.title
+    private var details: String? {
+        var parts: [String] = []
+        if deal.dealType == .other, let d = deal.otherDescription, !d.isEmpty { parts.append(d) }
+        let points = deal.keyPoints.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !points.isEmpty { parts.append(points.replacingOccurrences(of: "\n", with: " · ")) }
+        let joined = parts.joined(separator: " · ")
+        return joined.isEmpty ? nil : joined
     }
 
     var body: some View {
         HStack(spacing: 10) {
             thumbnail
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(headline)
+                    Text(deal.title.isEmpty ? "Untitled deal" : deal.title)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.text)
                         .lineLimit(1)
@@ -109,29 +109,28 @@ struct DealCardView: View {
                             .lineLimit(1)
                     }
                 }
-                if let subtitle {
-                    Text(subtitle)
-                        .font(.footnote)
-                        .foregroundStyle(Theme.secondaryText)
-                        .lineLimit(1)
-                }
                 HStack(spacing: 6) {
-                    Image(systemName: deal.dealType.symbol)
-                        .foregroundStyle(deal.dealType.accent)
+                    TypeBadge(type: deal.dealType)
                     Text(deal.weekdays.weekdaySummary)
                     if let time = deal.timeSummary {
                         Text("·")
-                        Text(time)
+                        Label(time, systemImage: "clock").labelStyle(.titleAndIcon)
                     }
                 }
                 .font(.caption2)
                 .foregroundStyle(Theme.secondaryText)
                 .lineLimit(1)
+                if let details {
+                    Text(details)
+                        .font(.caption)
+                        .foregroundStyle(Theme.secondaryText)
+                        .lineLimit(2)
+                }
             }
         }
         .padding(10)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.secondaryBackground, lineWidth: 1))
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.secondaryBackground, lineWidth: 1))
     }
 
     @ViewBuilder
@@ -140,12 +139,12 @@ struct DealCardView: View {
             Image(uiImage: image)
                 .resizable()
                 .scaledToFill()
-                .frame(width: 50, height: 50)
+                .frame(width: 46, height: 46)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
         } else {
             RoundedRectangle(cornerRadius: 10)
                 .fill(deal.dealType.accent.opacity(0.15))
-                .frame(width: 50, height: 50)
+                .frame(width: 46, height: 46)
                 .overlay(Image(systemName: deal.dealType.symbol).foregroundStyle(deal.dealType.accent))
         }
     }

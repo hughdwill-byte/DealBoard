@@ -18,6 +18,7 @@ struct EstablishmentEditorView: View {
     var onSave: ((Establishment) -> Void)?
 
     @State private var name = ""
+    @State private var specials = ""
     @State private var address = ""
     @State private var notes = ""
     @State private var latitude: Double?
@@ -28,6 +29,10 @@ struct EstablishmentEditorView: View {
     @State private var searchText = ""
     @State private var photoItem: PhotosPickerItem?
     @State private var photoHadNoLocation = false
+
+    // Nearby recommendations for a detected coordinate
+    @State private var nearby: [EstablishmentCandidate] = []
+    @State private var loadingNearby = false
 
     init(
         establishment: Establishment? = nil,
@@ -44,13 +49,23 @@ struct EstablishmentEditorView: View {
             Form {
                 searchSection
                 Section("Name") {
-                    TextField("Establishment name", text: $name)
+                    TextField("Place name", text: $name)
+                        .textInputAutocapitalization(.words)
+                }
+                Section {
+                    TextField("e.g. £5 pints, half-price mains", text: $specials, axis: .vertical)
+                        .lineLimit(1...3)
+                } header: {
+                    Text("Specials")
+                } footer: {
+                    Text("What this place's deals are known for. Shown on the home screen.")
                 }
                 Section("Details") {
                     TextField("Address (optional)", text: $address)
                     TextField("Notes (optional)", text: $notes, axis: .vertical)
                         .lineLimit(1...4)
                 }
+                nearbySection
                 Section("Location") {
                     if let latitude, let longitude {
                         Label(String(format: "%.5f, %.5f", latitude, longitude),
@@ -101,6 +116,13 @@ struct EstablishmentEditorView: View {
                 }
             }
             .onAppear(perform: load)
+            .task {
+                // If we opened with a coordinate but no name yet (e.g. from the
+                // deal photo flow), recommend the closest places right away.
+                if establishment == nil, latitude != nil, name.isEmpty {
+                    await loadNearby()
+                }
+            }
             .tint(Theme.accent)
         }
     }
@@ -157,6 +179,63 @@ struct EstablishmentEditorView: View {
         Haptics.tap()
     }
 
+    // MARK: Nearby recommendations
+
+    /// Suggestions for a detected coordinate — closest food/drink places first.
+    @ViewBuilder
+    private var nearbySection: some View {
+        if latitude != nil, loadingNearby || !nearby.isEmpty {
+            Section {
+                ForEach(nearby) { candidate in
+                    Button {
+                        pickNearby(candidate)
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(candidate.name).foregroundStyle(Theme.text)
+                                if let subtitle = candidate.subtitle {
+                                    Text(subtitle).font(.caption).foregroundStyle(Theme.secondaryText)
+                                }
+                            }
+                            Spacer()
+                            Image(systemName: "mappin.circle").foregroundStyle(Theme.secondaryText)
+                        }
+                    }
+                }
+                if loadingNearby && nearby.isEmpty {
+                    HStack(spacing: 8) {
+                        ProgressView().controlSize(.mini)
+                        Text("Finding nearby places…").foregroundStyle(Theme.secondaryText)
+                    }
+                }
+            } header: {
+                Text("Nearby places")
+            } footer: {
+                Text("Closest first, from the detected location. Pick one to fill in the name and address.")
+            }
+        }
+    }
+
+    /// Fill the fields from a nearby suggestion.
+    private func pickNearby(_ candidate: EstablishmentCandidate) {
+        name = candidate.name
+        if let a = candidate.address, !a.isEmpty { address = a }
+        if let coord = candidate.coordinate {
+            latitude = coord.latitude
+            longitude = coord.longitude
+        }
+        Haptics.tap()
+    }
+
+    /// Look up nearby places for the current coordinate (online enrichment).
+    private func loadNearby() async {
+        guard let latitude, let longitude else { nearby = []; return }
+        loadingNearby = true
+        nearby = await EstablishmentMatcher.onlineNearby(
+            to: CLLocationCoordinate2D(latitude: latitude, longitude: longitude))
+        loadingNearby = false
+    }
+
     /// Read a coordinate out of a picked photo's metadata (EXIF, then PHAsset).
     private func extractPhotoLocation(_ item: PhotosPickerItem) async {
         photoHadNoLocation = false
@@ -171,6 +250,7 @@ struct EstablishmentEditorView: View {
             latitude = coordinate.latitude
             longitude = coordinate.longitude
             Haptics.tap()
+            await loadNearby()   // recommend the closest places for this location
         } else {
             photoHadNoLocation = true
             Haptics.warning()
@@ -182,6 +262,7 @@ struct EstablishmentEditorView: View {
         loaded = true
         if let establishment {
             name = establishment.name
+            specials = establishment.specials ?? ""
             address = establishment.address ?? ""
             notes = establishment.notes ?? ""
             latitude = establishment.latitude
@@ -197,6 +278,7 @@ struct EstablishmentEditorView: View {
             latitude = c.latitude
             longitude = c.longitude
             Haptics.tap()
+            await loadNearby()   // recommend the closest places for this location
         }
     }
 
@@ -204,6 +286,7 @@ struct EstablishmentEditorView: View {
         let target = establishment ?? Establishment()
         if establishment == nil { context.insert(target) }
         target.name = name.trimmingCharacters(in: .whitespaces)
+        target.specials = specials.trimmingCharacters(in: .whitespaces).isEmpty ? nil : specials
         target.address = address.isEmpty ? nil : address
         target.notes = notes.isEmpty ? nil : notes
         target.latitude = latitude

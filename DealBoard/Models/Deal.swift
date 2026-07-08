@@ -14,6 +14,8 @@ final class Deal {
     var weekdays: [Int] = []
     var price: String?
     var notes: String?
+    /// Description of the event when dealType is .other (trivia, poker, comedy…).
+    var otherDescription: String?
     /// Optional time-of-day window the deal runs, stored as minutes since
     /// midnight (0–1439). Nil = runs all day. Two deals at the same place with
     /// different windows are simply two Deal rows.
@@ -32,6 +34,7 @@ final class Deal {
         weekdays: [Int] = [],
         price: String? = nil,
         notes: String? = nil,
+        otherDescription: String? = nil,
         startMinutes: Int? = nil,
         endMinutes: Int? = nil,
         imageFilename: String? = nil,
@@ -44,6 +47,7 @@ final class Deal {
         self.weekdays = weekdays
         self.price = price
         self.notes = notes
+        self.otherDescription = otherDescription
         self.startMinutes = startMinutes
         self.endMinutes = endMinutes
         self.imageFilename = imageFilename

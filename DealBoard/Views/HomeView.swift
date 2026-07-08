@@ -2,7 +2,10 @@ import SwiftUI
 import SwiftData
 
 /// Home screen: pick a weekday (defaults to today) and see every deal that runs
-/// that day, filterable by type. Fully offline.
+/// that day, grouped by venue, filterable by type. Fully offline.
+///
+/// The whole screen — big title, day picker, type filters and the venue list —
+/// lives inside one ScrollView so everything scrolls together as a unit.
 struct HomeView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \Deal.title) private var allDeals: [Deal]
@@ -11,62 +14,119 @@ struct HomeView: View {
     @State private var typeFilter: DealType?
     @State private var showingAdd = false
 
-    private var deals: [Deal] {
-        allDeals
-            .filter { deal in
-                deal.weekdays.contains(selectedDay) &&
-                (typeFilter == nil || deal.dealType == typeFilter)
+    /// Deals on the selected day matching the current type filter (individual level).
+    private var dayDeals: [Deal] {
+        allDeals.filter { deal in
+            deal.weekdays.contains(selectedDay) &&
+            (typeFilter == nil || deal.dealType == typeFilter)
+        }
+    }
+
+    /// The matching deals grouped by venue, venues sorted by name.
+    private var venues: [VenueGroup] {
+        let withVenue = dayDeals.filter { $0.establishment != nil }
+        return Dictionary(grouping: withVenue, by: { $0.establishment!.id })
+            .compactMap { _, deals -> VenueGroup? in
+                guard let place = deals.first?.establishment else { return nil }
+                return VenueGroup(id: place.id, name: place.name, specials: place.specials,
+                                  deals: deals.sortedByTime())
             }
-            // Earlier-in-the-day deals first; all-day deals (no start) sort last.
-            .sorted { ($0.startMinutes ?? .max, $0.title) < ($1.startMinutes ?? .max, $1.title) }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    /// Deals with no venue assigned, shown in their own group.
+    private var looseDeals: [Deal] {
+        dayDeals.filter { $0.establishment == nil }.sortedByTime()
     }
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 12) {
-                WeekdayChips(selection: Binding(
-                    get: { [selectedDay] },
-                    set: { if let day = $0.first { selectedDay = day } }
-                ), singleSelect: true)
-                .padding(.top, 4)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(Weekday(rawValue: selectedDay)?.full ?? "Deals")
+                        .font(.largeTitle.bold())
+                        .foregroundStyle(Theme.text)
+                        .padding(.horizontal)
 
-                typeFilterBar
+                    WeekdayChips(selection: Binding(
+                        get: { [selectedDay] },
+                        set: { if let day = $0.first { selectedDay = day } }
+                    ), singleSelect: true)
 
-                if deals.isEmpty {
-                    Spacer()
-                    emptyState
-                    Spacer()
-                } else {
-                    dealList
+                    typeFilterBar
+
+                    if dayDeals.isEmpty {
+                        emptyState
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 48)
+                    } else {
+                        ForEach(venues) { venue in
+                            venueSection(name: venue.name, specials: venue.specials, deals: venue.deals)
+                        }
+                        if !looseDeals.isEmpty {
+                            venueSection(name: "No place set", specials: nil, deals: looseDeals)
+                        }
+                    }
                 }
+                .padding(.vertical)
             }
             .background(Theme.background)
-            .navigationTitle(Weekday(rawValue: selectedDay)?.full ?? "Deals")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showingAdd = true
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                    .accessibilityLabel("Add deal")
+                    Button { showingAdd = true } label: { Image(systemName: "plus") }
+                        .accessibilityLabel("Add deal")
                 }
             }
-            .sheet(isPresented: $showingAdd) {
-                DealEditorView(deal: nil)
-            }
+            .navigationDestination(for: Deal.self) { DealDetailView(deal: $0) }
+            .sheet(isPresented: $showingAdd) { DealEditorView(deal: nil) }
         }
         .tint(Theme.accent)
     }
 
-    private var typeFilterBar: some View {
-        HStack(spacing: 8) {
-            filterChip(nil, label: "All", symbol: "square.grid.2x2")
-            ForEach(DealType.allCases) { type in
-                filterChip(type, label: type.label, symbol: type.symbol)
+    // MARK: Venue section
+
+    private func venueSection(name: String, specials: String?, deals: [Deal]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Label(name, systemImage: "mappin.and.ellipse")
+                    .font(.headline)
+                    .foregroundStyle(Theme.text)
+                if let specials, !specials.isEmpty {
+                    Text(specials)
+                        .font(.caption)
+                        .foregroundStyle(Theme.secondaryText)
+                }
+            }
+            .padding(.horizontal)
+
+            ForEach(deals) { deal in
+                NavigationLink(value: deal) {
+                    DealRowView(deal: deal)
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal)
+                .contextMenu {
+                    Button(role: .destructive) { delete(deal) } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
             }
         }
-        .padding(.horizontal)
+    }
+
+    // MARK: Type filter
+
+    private var typeFilterBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                filterChip(nil, label: "All", symbol: "square.grid.2x2")
+                ForEach(DealType.allCases) { type in
+                    filterChip(type, label: type.label, symbol: type.symbol)
+                }
+            }
+            .padding(.horizontal)
+        }
     }
 
     private func filterChip(_ type: DealType?, label: String, symbol: String) -> some View {
@@ -85,27 +145,6 @@ struct HomeView: View {
         .buttonStyle(.plain)
     }
 
-    private var dealList: some View {
-        List {
-            ForEach(deals) { deal in
-                ZStack {
-                    NavigationLink(value: deal) { EmptyView() }.opacity(0)
-                    DealCardView(deal: deal)
-                }
-                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-                .swipeActions {
-                    Button(role: .destructive) { delete(deal) } label: {
-                        Label("Delete", systemImage: "trash")
-                    }
-                }
-            }
-        }
-        .listStyle(.plain)
-        .navigationDestination(for: Deal.self) { DealDetailView(deal: $0) }
-    }
-
     private var emptyState: some View {
         EmptyStateView(
             symbol: "calendar.badge.exclamationmark",
@@ -120,6 +159,21 @@ struct HomeView: View {
         ImageStore.delete(deal.imageFilename)
         context.delete(deal)
         Haptics.success()
+    }
+}
+
+/// One venue's deals for the selected day.
+private struct VenueGroup: Identifiable {
+    let id: UUID
+    let name: String
+    let specials: String?
+    let deals: [Deal]
+}
+
+private extension Array where Element == Deal {
+    /// Earlier-in-the-day first; all-day deals (no start) sort last.
+    func sortedByTime() -> [Deal] {
+        sorted { ($0.startMinutes ?? .max, $0.title) < ($1.startMinutes ?? .max, $1.title) }
     }
 }
 

@@ -19,10 +19,12 @@ struct DealEditorView: View {
     @State private var keyPoints = ""
     @State private var rawText = ""
     @State private var dealType: DealType = .food
-    @State private var selectedDays: Set<Int> = [Weekday.today.rawValue]
+    @State private var selectedDays: Set<Int> = []   // no day selected by default
     @State private var price = ""
     @State private var notes = ""
+    @State private var otherDescription = ""
     @State private var establishment: Establishment?
+    @State private var showingZoom = false
 
     // Optional time-of-day window
     @State private var hasTime = false
@@ -76,6 +78,9 @@ struct DealEditorView: View {
             .sheet(isPresented: $showingEstablishmentPicker) {
                 EstablishmentPickerView(coordinate: photoCoordinate, selection: $establishment)
             }
+            .fullScreenCover(isPresented: $showingZoom) {
+                if let image { PhotoZoomView(image: image) }
+            }
             .onAppear(perform: loadExisting)
             .onChange(of: photoItem) { _, newItem in
                 guard let newItem else { return }
@@ -90,11 +95,25 @@ struct DealEditorView: View {
     private var photoSection: some View {
         Section {
             if let image {
-                Image(uiImage: image)
-                    .resizable().scaledToFit()
-                    .frame(maxHeight: 220)
-                    .frame(maxWidth: .infinity)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                Button {
+                    showingZoom = true
+                } label: {
+                    Image(uiImage: image)
+                        .resizable().scaledToFit()
+                        .frame(maxHeight: 220)
+                        .frame(maxWidth: .infinity)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay(alignment: .bottomTrailing) {
+                            Image(systemName: "arrow.up.left.and.arrow.down.right.magnifyingglass")
+                                .font(.caption.weight(.semibold))
+                                .padding(6)
+                                .background(.black.opacity(0.45), in: Circle())
+                                .foregroundStyle(.white)
+                                .padding(8)
+                        }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Zoom into photo")
             }
             HStack {
                 PhotosPicker(selection: $photoItem, matching: .images) {
@@ -127,10 +146,23 @@ struct DealEditorView: View {
     private var detailsSection: some View {
         Section("Details") {
             TextField("Title", text: $title)
+                .textInputAutocapitalization(.words)   // capitalise each word
             Picker("Type", selection: $dealType) {
                 ForEach(DealType.allCases) { Text($0.label).tag($0) }
             }
+            if dealType == .other {
+                VStack(alignment: .leading) {
+                    Text("What's on").font(.caption).foregroundStyle(Theme.secondaryText)
+                    TextField("e.g. Trivia night, live poker, comedy", text: $otherDescription,
+                              axis: .vertical)
+                        .lineLimit(1...3)
+                }
+            }
             TextField("Price (optional)", text: $price)
+                .keyboardType(.numbersAndPunctuation)
+                .onChange(of: price) { _, newValue in
+                    price = Self.formatPrice(newValue)
+                }
             VStack(alignment: .leading) {
                 Text("Key points").font(.caption).foregroundStyle(Theme.secondaryText)
                 TextField("One per line", text: $keyPoints, axis: .vertical)
@@ -142,6 +174,18 @@ struct DealEditorView: View {
                     .lineLimit(1...4)
             }
         }
+    }
+
+    /// Ensure every number in the price carries a "$": "10" → "$10",
+    /// "10-15" → "$10-$15". Idempotent and tolerant of partial input
+    /// (a trailing "-" while typing is preserved).
+    static func formatPrice(_ raw: String) -> String {
+        guard !raw.isEmpty else { return "" }
+        return raw.components(separatedBy: "-").map { part -> String in
+            let stripped = part.replacingOccurrences(of: "$", with: "")
+                .trimmingCharacters(in: .whitespaces)
+            return stripped.isEmpty ? "" : "$\(stripped)"
+        }.joined(separator: "-")
     }
 
     private var daysSection: some View {
@@ -204,9 +248,9 @@ struct DealEditorView: View {
             .disabled(!canSave)
         } footer: {
             if establishment != nil {
-                Text("Keeps \(establishment!.name) and the photo; clears the day, title and price for the next deal.")
+                Text("Keeps \(establishment!.name), the photo and key points; clears the day, title and price for the next deal.")
             } else {
-                Text("Saves this deal and keeps the photo so you can add another straight away.")
+                Text("Saves this deal and keeps the photo and key points so you can add another straight away.")
             }
         }
     }
@@ -237,6 +281,7 @@ struct DealEditorView: View {
         selectedDays = Set(deal.weekdays)
         price = deal.price ?? ""
         notes = deal.notes ?? ""
+        otherDescription = deal.otherDescription ?? ""
         establishment = deal.establishment
         existingFilename = deal.imageFilename
         image = ImageStore.load(deal.imageFilename)
@@ -267,6 +312,8 @@ struct DealEditorView: View {
         target.weekdays = Array(selectedDays).sorted()
         target.price = price.isEmpty ? nil : price
         target.notes = notes.isEmpty ? nil : notes
+        target.otherDescription = (dealType == .other && !otherDescription.trimmingCharacters(in: .whitespaces).isEmpty)
+            ? otherDescription : nil
         target.startMinutes = hasTime ? Self.minutes(from: startTime) : nil
         target.endMinutes = hasTime ? Self.minutes(from: endTime) : nil
         target.imageFilename = filename
@@ -275,10 +322,11 @@ struct DealEditorView: View {
         Haptics.success()
 
         if keepGoing {
-            // Ready the form for the next deal at the same place: keep the
-            // establishment and photo, clear the per-deal fields.
-            title = ""; keyPoints = ""; price = ""; notes = ""
-            selectedDays = [Weekday.today.rawValue]
+            // Ready the form for the next deal at the same place. Keep the
+            // establishment, photo and key points (often shared across a venue's
+            // deals); clear the fields that differ per deal.
+            title = ""; price = ""; notes = ""
+            selectedDays = []
             hasTime = false
             existingFilename = nil  // next save writes its own copy of the photo
         } else {

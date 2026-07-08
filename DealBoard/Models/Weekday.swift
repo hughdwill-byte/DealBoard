@@ -12,6 +12,10 @@ enum Weekday: Int, CaseIterable, Identifiable {
         Weekday(rawValue: Calendar.current.component(.weekday, from: Date())) ?? .monday
     }
 
+    /// Display order Monday → Sunday (the raw values keep Calendar's Sun=1 basis).
+    static let mondayFirst: [Weekday] = [.monday, .tuesday, .wednesday, .thursday,
+                                         .friday, .saturday, .sunday]
+
     /// Short symbol ("Mon"), localised. `shortWeekdaySymbols` is 0-indexed with Sunday first.
     var short: String {
         Calendar.current.shortWeekdaySymbols[rawValue - 1]
@@ -30,7 +34,8 @@ enum Weekday: Int, CaseIterable, Identifiable {
 extension Array where Element == Int {
     /// Compact human summary of the weekdays a deal runs, e.g. "Mon, Wed, Fri".
     var weekdaySummary: String {
-        let ordered = compactMap { Weekday(rawValue: $0) }.sorted { $0.rawValue < $1.rawValue }
+        let set = Set(self)
+        let ordered = Weekday.mondayFirst.filter { set.contains($0.rawValue) }
         guard !ordered.isEmpty else { return "No days set" }
         if ordered.count == 7 { return "Every day" }
         return ordered.map(\.short).joined(separator: ", ")

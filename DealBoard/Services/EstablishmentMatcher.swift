@@ -10,7 +10,8 @@ struct EstablishmentCandidate: Identifiable, Hashable {
     }
     let id = UUID()
     var name: String
-    var subtitle: String?     // distance or address
+    var subtitle: String?     // distance or address, for display
+    var address: String?      // resolved address, used to fill the editor
     var source: Source
     var coordinate: CLLocationCoordinate2D?
     /// Set when the candidate is one of the user's existing establishments.
@@ -72,21 +73,22 @@ enum EstablishmentMatcher {
         do {
             let response = try await MKLocalSearch(request: request).start()
             let origin = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
-            return response.mapItems.compactMap { item in
-                guard let name = item.name else { return nil }
-                let subtitle: String?
-                if let loc = item.placemark.location {
-                    subtitle = "\(Int(origin.distance(from: loc))) m away"
-                } else {
-                    subtitle = item.placemark.title
+            return response.mapItems
+                .compactMap { item -> (EstablishmentCandidate, CLLocationDistance)? in
+                    guard let name = item.name else { return nil }
+                    let distance = item.placemark.location.map { origin.distance(from: $0) }
+                    let subtitle = distance.map { "\(Int($0)) m away" } ?? item.placemark.title
+                    let candidate = EstablishmentCandidate(
+                        name: name,
+                        subtitle: subtitle,
+                        address: item.placemark.title,
+                        source: .online,
+                        coordinate: item.placemark.coordinate
+                    )
+                    return (candidate, distance ?? .greatestFiniteMagnitude)
                 }
-                return EstablishmentCandidate(
-                    name: name,
-                    subtitle: subtitle,
-                    source: .online,
-                    coordinate: item.placemark.coordinate
-                )
-            }
+                .sorted { $0.1 < $1.1 }   // closest first
+                .map(\.0)
         } catch {
             return []   // offline or no results — degrade gracefully
         }

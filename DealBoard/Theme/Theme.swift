@@ -19,6 +19,7 @@ enum Theme {
     static let food   = dynamic(light: 0xC08017, dark: 0xE0A23C)   // warm amber
     static let drink  = dynamic(light: 0x3E6B4F, dark: 0x5C9370)   // deep forest green
     static let both   = dynamic(light: 0x8A6A4A, dark: 0xB08A63)   // warm taupe
+    static let other  = dynamic(light: 0xA5545A, dark: 0xC77F84)   // warm rosewood
 
     /// Build a `Color` that resolves differently in light vs dark mode.
     private static func dynamic(light: UInt, dark: UInt) -> Color {

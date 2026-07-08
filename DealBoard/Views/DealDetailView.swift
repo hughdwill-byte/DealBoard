@@ -8,16 +8,32 @@ struct DealDetailView: View {
 
     @State private var showingEdit = false
     @State private var showingDeleteConfirm = false
+    @State private var showingZoom = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 if let image = ImageStore.load(deal.imageFilename) {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxWidth: .infinity)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                    Button { showingZoom = true } label: {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxWidth: .infinity)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .overlay(alignment: .bottomTrailing) {
+                                Image(systemName: "arrow.up.left.and.arrow.down.right.magnifyingglass")
+                                    .font(.subheadline.weight(.semibold))
+                                    .padding(8)
+                                    .background(.black.opacity(0.45), in: Circle())
+                                    .foregroundStyle(.white)
+                                    .padding(10)
+                            }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Zoom into photo")
+                    .fullScreenCover(isPresented: $showingZoom) {
+                        PhotoZoomView(image: image)
+                    }
                 }
 
                 HStack {
@@ -27,10 +43,15 @@ struct DealDetailView: View {
                     }
                 }
 
-                if let name = deal.establishment?.name, !name.isEmpty {
-                    Label(name, systemImage: "mappin.and.ellipse")
-                        .font(.headline)
-                        .foregroundStyle(Theme.text)
+                if let place = deal.establishment, !place.name.isEmpty {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Label(place.name, systemImage: "mappin.and.ellipse")
+                            .font(.headline)
+                            .foregroundStyle(Theme.text)
+                        if let specials = place.specials, !specials.isEmpty {
+                            Text(specials).font(.subheadline).foregroundStyle(Theme.secondaryText)
+                        }
+                    }
                 }
 
                 infoRow(symbol: "calendar", text: deal.weekdays.weekdaySummary)
@@ -38,6 +59,9 @@ struct DealDetailView: View {
                     infoRow(symbol: "clock", text: time)
                 }
 
+                if deal.dealType == .other, let desc = deal.otherDescription, !desc.isEmpty {
+                    section("What's on") { Text(desc).foregroundStyle(Theme.text) }
+                }
                 if !deal.keyPoints.isEmpty {
                     section("Key points") {
                         Text(deal.keyPoints).foregroundStyle(Theme.text)
