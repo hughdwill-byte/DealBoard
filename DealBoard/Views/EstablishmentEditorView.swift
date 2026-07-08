@@ -1,13 +1,17 @@
 import SwiftUI
 import SwiftData
 import CoreLocation
+import MapKit
+import PhotosUI
 
-/// Add or edit an establishment. Coordinates are optional — you can save the
-/// current location (so future photo-GPS matching works) or leave it blank.
+/// Add or edit an establishment. Coordinates are optional — set them by searching
+/// the map, reading a photo's GPS metadata, capturing the current location, or
+/// leave them blank. All manual fields still work with no connection.
 struct EstablishmentEditorView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @StateObject private var location = LocationService()
+    @StateObject private var search = PlaceSearch()
 
     let establishment: Establishment?
     var prefillCoordinate: CLLocationCoordinate2D?
@@ -19,6 +23,11 @@ struct EstablishmentEditorView: View {
     @State private var latitude: Double?
     @State private var longitude: Double?
     @State private var loaded = false
+
+    // Map typeahead + photo-metadata location
+    @State private var searchText = ""
+    @State private var photoItem: PhotosPickerItem?
+    @State private var photoHadNoLocation = false
 
     init(
         establishment: Establishment? = nil,
@@ -33,6 +42,7 @@ struct EstablishmentEditorView: View {
     var body: some View {
         NavigationStack {
             Form {
+                searchSection
                 Section("Name") {
                     TextField("Establishment name", text: $name)
                 }
@@ -63,7 +73,19 @@ struct EstablishmentEditorView: View {
                             }
                         }
                     }
+                    PhotosPicker(selection: $photoItem, matching: .images) {
+                        Label("Get location from a photo", systemImage: "photo")
+                    }
+                    .buttonStyle(.borderless)
+                    if photoHadNoLocation {
+                        Text("That photo had no location data.")
+                            .font(.footnote).foregroundStyle(Theme.secondaryText)
+                    }
                 }
+            }
+            .onChange(of: photoItem) { _, item in
+                guard let item else { return }
+                Task { await extractPhotoLocation(item) }
             }
             .scrollContentBackground(.hidden)
             .background(Theme.background)
@@ -80,6 +102,78 @@ struct EstablishmentEditorView: View {
             }
             .onAppear(perform: load)
             .tint(Theme.accent)
+        }
+    }
+
+    // MARK: Map typeahead
+
+    private var searchSection: some View {
+        Section {
+            HStack {
+                Image(systemName: "magnifyingglass").foregroundStyle(Theme.secondaryText)
+                TextField("Search cafés, bars, restaurants…", text: $searchText)
+                    .autocorrectionDisabled()
+                    .onChange(of: searchText) { _, new in search.update(query: new) }
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                        search.suggestions = []
+                    } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.secondaryText)
+                    }
+                    .buttonStyle(.borderless)
+                }
+            }
+            ForEach(search.suggestions, id: \.self) { suggestion in
+                Button {
+                    Task { await choosePlace(suggestion) }
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(suggestion.title).foregroundStyle(Theme.text)
+                        if !suggestion.subtitle.isEmpty {
+                            Text(suggestion.subtitle)
+                                .font(.caption).foregroundStyle(Theme.secondaryText)
+                        }
+                    }
+                }
+            }
+        } header: {
+            Text("Find on the map")
+        } footer: {
+            Text("Pick a result to fill in the name, address and location automatically. Works when you're online.")
+        }
+    }
+
+    /// Resolve a chosen suggestion and fill the fields from it.
+    private func choosePlace(_ completion: MKLocalSearchCompletion) async {
+        guard let item = await search.resolve(completion) else { return }
+        name = item.name ?? completion.title
+        let placemark = item.placemark
+        if let title = placemark.title, !title.isEmpty { address = title }
+        latitude = placemark.coordinate.latitude
+        longitude = placemark.coordinate.longitude
+        searchText = ""
+        search.suggestions = []
+        Haptics.tap()
+    }
+
+    /// Read a coordinate out of a picked photo's metadata (EXIF, then PHAsset).
+    private func extractPhotoLocation(_ item: PhotosPickerItem) async {
+        photoHadNoLocation = false
+        var coordinate: CLLocationCoordinate2D?
+        if let data = try? await item.loadTransferable(type: Data.self) {
+            coordinate = PhotoMetadata.coordinate(fromImageData: data)
+        }
+        if coordinate == nil {
+            coordinate = await PhotoMetadata.coordinate(fromAssetIdentifier: item.itemIdentifier)
+        }
+        if let coordinate {
+            latitude = coordinate.latitude
+            longitude = coordinate.longitude
+            Haptics.tap()
+        } else {
+            photoHadNoLocation = true
+            Haptics.warning()
         }
     }
 
