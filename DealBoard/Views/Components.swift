@@ -100,7 +100,7 @@ struct DealRowView: View {
                     Text(deal.title.isEmpty ? "Untitled deal" : deal.title)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.text)
-                        .lineLimit(1)
+                        .fixedSize(horizontal: false, vertical: true) // wrap, don't truncate
                     Spacer(minLength: 4)
                     // Uniform price shows here; varying prices show per time below.
                     if let price = deal.displayPrice {
