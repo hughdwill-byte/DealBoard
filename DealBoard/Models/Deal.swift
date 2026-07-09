@@ -71,14 +71,22 @@ final class Deal {
 
     // MARK: Time slots (combining)
 
-    /// The slots to display, sorted earliest-first. Prefers `timeSlots`; for
-    /// older deals that predate slots, derives one slot from the legacy fields.
+    /// The slots to display, sorted earliest-first within the 6am→6am night
+    /// (so an after-midnight window follows the evening rather than leading the
+    /// morning). Prefers `timeSlots`; older deals fall back to the legacy fields.
     var orderedSlots: [TimeSlot] {
         let base = timeSlots.isEmpty ? legacySlots : timeSlots
         return base.sorted { a, b in
-            let sa = a.startMinutes ?? Int.max, sb = b.startMinutes ?? Int.max
+            let sa = a.startMinutes.map(DayBoundary.order) ?? Int.max
+            let sb = b.startMinutes.map(DayBoundary.order) ?? Int.max
             return sa != sb ? sa < sb : (a.price ?? "") < (b.price ?? "")
         }
+    }
+
+    /// Sort key for ordering deals within a day's list (earliest window first,
+    /// late-night last, no-time deals last of all).
+    var sortStart: Int {
+        orderedSlots.first?.startMinutes.map(DayBoundary.order) ?? Int.max
     }
 
     /// Single-slot view of the legacy fields (empty if there's nothing to show).

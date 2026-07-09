@@ -1,5 +1,17 @@
 import Foundation
 
+/// The app treats a day as running 6am → 6am. Times before 6am are "late night"
+/// belonging to the previous evening, for both "what day is it" and sort order.
+enum DayBoundary {
+    static let startMinutes = 6 * 60   // 6:00 AM
+
+    /// Remap minutes-since-midnight so a night sorts in real order: 6am is
+    /// earliest, late-evening next, and after-midnight last (not first).
+    static func order(_ minutes: Int) -> Int {
+        minutes < startMinutes ? minutes + 24 * 60 : minutes
+    }
+}
+
 /// Weekdays are stored as `Int` indices using Calendar's convention:
 /// 1 = Sunday ... 7 = Saturday. This matches `Calendar.component(.weekday)`
 /// so "today" is trivial to compute without any conversion.
@@ -8,8 +20,12 @@ enum Weekday: Int, CaseIterable, Identifiable {
 
     var id: Int { rawValue }
 
+    /// The current "night". Days start at 6am, so before 6am still counts as the
+    /// previous evening (a deal running past midnight belongs to that night).
     static var today: Weekday {
-        Weekday(rawValue: Calendar.current.component(.weekday, from: Date())) ?? .monday
+        let cal = Calendar.current
+        let adjusted = cal.date(byAdding: .minute, value: -DayBoundary.startMinutes, to: Date()) ?? Date()
+        return Weekday(rawValue: cal.component(.weekday, from: adjusted)) ?? .monday
     }
 
     /// Display order Monday → Sunday (the raw values keep Calendar's Sun=1 basis).

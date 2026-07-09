@@ -171,9 +171,9 @@ private struct VenueGroup: Identifiable {
 }
 
 private extension Array where Element == Deal {
-    /// Earlier-in-the-day first; all-day deals (no start) sort last.
+    /// Earlier-in-the-night first (6am→6am); all-day deals (no start) sort last.
     func sortedByTime() -> [Deal] {
-        sorted { ($0.startMinutes ?? .max, $0.title) < ($1.startMinutes ?? .max, $1.title) }
+        sorted { ($0.sortStart, $0.title) < ($1.sortStart, $1.title) }
     }
 }
 
