@@ -13,6 +13,8 @@ struct DealBoardApp: App {
 }
 
 struct RootView: View {
+    @Environment(\.modelContext) private var context
+
     var body: some View {
         TabView {
             HomeView()
@@ -21,6 +23,17 @@ struct RootView: View {
                 .tabItem { Label("Places", systemImage: "mappin.and.ellipse") }
         }
         .tint(Theme.accent)
+        .task { backfillDuplicatesOnce() }
+    }
+
+    /// One-time, non-destructive combine of duplicate saved deals. Guarded by a
+    /// flag so it runs at most once; the merge is idempotent regardless.
+    private func backfillDuplicatesOnce() {
+        let flag = "didMergeDuplicateDeals.v1"
+        guard !UserDefaults.standard.bool(forKey: flag) else { return }
+        DealMerger.mergeExisting(in: context)
+        try? context.save()
+        UserDefaults.standard.set(true, forKey: flag)
     }
 }
 

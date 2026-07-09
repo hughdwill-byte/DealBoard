@@ -55,6 +55,15 @@ enum PreviewData {
             price: "$35",
             establishment: vine
         ))
+        // A combined deal: same beers, same night, two windows at different
+        // prices — shows the "$6 from 4–6pm, then $8 from 8–10pm" presentation.
+        let beers = Deal(title: "Beers", dealType: .drink, weekdays: [4], establishment: vine)
+        beers.timeSlots = [
+            TimeSlot(startMinutes: 16 * 60, endMinutes: 18 * 60, price: "$6"),
+            TimeSlot(startMinutes: 20 * 60, endMinutes: 22 * 60, price: "$8")
+        ]
+        ctx.insert(beers)
+
         // Same night as Happy Hour — an "Other" event, to show grouping + type.
         ctx.insert(Deal(
             title: "Quiz Night",

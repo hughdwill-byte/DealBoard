@@ -102,7 +102,8 @@ struct DealRowView: View {
                         .foregroundStyle(Theme.text)
                         .lineLimit(1)
                     Spacer(minLength: 4)
-                    if let price = deal.price, !price.isEmpty {
+                    // Uniform price shows here; varying prices show per time below.
+                    if let price = deal.displayPrice {
                         Text(price)
                             .font(.subheadline.weight(.bold))
                             .foregroundStyle(Theme.accent)
@@ -112,14 +113,20 @@ struct DealRowView: View {
                 HStack(spacing: 6) {
                     TypeBadge(type: deal.dealType)
                     Text(deal.weekdays.weekdaySummary)
-                    if let time = deal.timeSummary {
+                    if !deal.pricesVary, let time = deal.timesLine {
                         Text("·")
                         Label(time, systemImage: "clock").labelStyle(.titleAndIcon)
                     }
                 }
                 .font(.caption2)
                 .foregroundStyle(Theme.secondaryText)
-                .lineLimit(1)
+                .lineLimit(2)
+                if deal.pricesVary, let priced = deal.pricedTimesLine {
+                    Label(priced, systemImage: "clock")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(Theme.accent)
+                        .lineLimit(2)
+                }
                 if let details {
                     Text(details)
                         .font(.caption)

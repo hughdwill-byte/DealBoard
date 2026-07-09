@@ -16,9 +16,13 @@ final class Deal {
     var notes: String?
     /// Description of the event when dealType is .other (trivia, poker, comedy…).
     var otherDescription: String?
-    /// Optional time-of-day window the deal runs, stored as minutes since
-    /// midnight (0–1439). Nil = runs all day. Two deals at the same place with
-    /// different windows are simply two Deal rows.
+    /// Time-of-day windows the deal runs, each with an optional price. Multiple
+    /// slots means a repeated deal at the same place/day was combined (e.g.
+    /// $6 4–6pm and $8 8–10pm). Empty = fall back to the legacy single window
+    /// below (older deals saved before slots existed).
+    var timeSlots: [TimeSlot] = []
+    /// Legacy single time window / price, kept for backward compatibility and as
+    /// the fallback when `timeSlots` is empty. Mirrors the first slot on save.
     var startMinutes: Int?
     var endMinutes: Int?
     /// Filename (not full path) of the photo in Documents. Nil for no-photo deals.
@@ -65,14 +69,83 @@ final class Deal {
         weekdays.contains(weekday.rawValue)
     }
 
-    /// Human summary of the time window, or nil when the deal runs all day.
-    /// e.g. "4:00 PM – 6:00 PM", "From 9:00 PM", "Until 6:00 PM".
-    var timeSummary: String? {
-        switch (startMinutes, endMinutes) {
-        case let (start?, end?): return "\(Self.format(start)) – \(Self.format(end))"
-        case let (start?, nil):  return "From \(Self.format(start))"
-        case let (nil, end?):    return "Until \(Self.format(end))"
-        case (nil, nil):         return nil
+    // MARK: Time slots (combining)
+
+    /// The slots to display, sorted earliest-first. Prefers `timeSlots`; for
+    /// older deals that predate slots, derives one slot from the legacy fields.
+    var orderedSlots: [TimeSlot] {
+        let base = timeSlots.isEmpty ? legacySlots : timeSlots
+        return base.sorted { a, b in
+            let sa = a.startMinutes ?? Int.max, sb = b.startMinutes ?? Int.max
+            return sa != sb ? sa < sb : (a.price ?? "") < (b.price ?? "")
+        }
+    }
+
+    /// Single-slot view of the legacy fields (empty if there's nothing to show).
+    private var legacySlots: [TimeSlot] {
+        if startMinutes == nil, endMinutes == nil, (price ?? "").isEmpty { return [] }
+        return [TimeSlot(startMinutes: startMinutes, endMinutes: endMinutes, price: price)]
+    }
+
+    /// True when the slots carry more than one distinct price.
+    var pricesVary: Bool {
+        let priced = orderedSlots
+            .map { ($0.price ?? "").trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        return Set(priced).count > 1
+    }
+
+    /// The one price to show when it's uniform across slots; nil when prices vary
+    /// (in which case each price is shown beside its own time).
+    var displayPrice: String? {
+        guard !pricesVary else { return nil }
+        return orderedSlots.compactMap { $0.price }.first { !$0.isEmpty }
+    }
+
+    /// Times joined for a uniform-price deal: "4:00 PM – 6:00 PM and 8:00 PM – 10:00 PM".
+    var timesLine: String? {
+        let times = orderedSlots.compactMap { Self.slotTime($0) }
+        return times.isEmpty ? nil : times.joined(separator: " and ")
+    }
+
+    /// Times with per-slot prices when they vary:
+    /// "$6 from 4:00 PM – 6:00 PM, then $8 from 8:00 PM – 10:00 PM".
+    var pricedTimesLine: String? {
+        guard pricesVary else { return nil }
+        let parts = orderedSlots.compactMap { slot -> String? in
+            let time = Self.slotTime(slot)
+            let p = (slot.price ?? "").trimmingCharacters(in: .whitespaces)
+            switch (p.isEmpty, time) {
+            case (false, let t?): return "\(p) from \(t)"
+            case (false, nil):    return p
+            case (true, let t?):  return t
+            case (true, nil):     return nil
+            }
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: ", then ")
+    }
+
+    /// One line per slot for the detail view: "$6 · 4:00 PM – 6:00 PM".
+    var slotDescriptions: [String] {
+        orderedSlots.map { slot in
+            let time = Self.slotTime(slot)
+            let p = (slot.price ?? "").trimmingCharacters(in: .whitespaces)
+            switch (p.isEmpty, time) {
+            case (false, let t?): return "\(p) · \(t)"
+            case (false, nil):    return p
+            case (true, let t?):  return t
+            case (true, nil):     return "All day"
+            }
+        }
+    }
+
+    /// Time range of one slot, or nil when it's all-day.
+    static func slotTime(_ slot: TimeSlot) -> String? {
+        switch (slot.startMinutes, slot.endMinutes) {
+        case let (s?, e?): return "\(format(s)) – \(format(e))"
+        case let (s?, nil): return "From \(format(s))"
+        case let (nil, e?): return "Until \(format(e))"
+        case (nil, nil): return nil
         }
     }
 

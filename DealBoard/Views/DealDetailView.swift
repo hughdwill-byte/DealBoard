@@ -38,7 +38,8 @@ struct DealDetailView: View {
 
                 HStack {
                     TypeBadge(type: deal.dealType)
-                    if let price = deal.price, !price.isEmpty {
+                    // Uniform price here; when prices vary they're listed per time below.
+                    if let price = deal.displayPrice {
                         Text(price).font(.title3.weight(.bold)).foregroundStyle(Theme.accent)
                     }
                 }
@@ -55,7 +56,19 @@ struct DealDetailView: View {
                 }
 
                 infoRow(symbol: "calendar", text: deal.weekdays.weekdaySummary)
-                if let time = deal.timeSummary {
+
+                // One combined line for a single window; a per-slot list when the
+                // deal has several time/price windows.
+                let slots = deal.orderedSlots
+                if slots.count > 1 {
+                    section("Times & prices") {
+                        VStack(alignment: .leading, spacing: 4) {
+                            ForEach(deal.slotDescriptions, id: \.self) { line in
+                                Label(line, systemImage: "clock").foregroundStyle(Theme.text)
+                            }
+                        }
+                    }
+                } else if let time = deal.timesLine {
                     infoRow(symbol: "clock", text: time)
                 }
 
