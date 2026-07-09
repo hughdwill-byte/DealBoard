@@ -214,7 +214,10 @@ struct DealEditorView: View {
                                 slot.price = Self.formatPrice(newValue)
                             }
                     }
-                    Toggle("Specific time", isOn: $slot.hasTime.animation())
+                    Toggle("All day", isOn: Binding(
+                        get: { !$slot.hasTime.wrappedValue },
+                        set: { $slot.hasTime.wrappedValue = !$0 }
+                    ).animation())
                     if slot.hasTime {
                         DatePicker("Starts", selection: $slot.start, displayedComponents: .hourAndMinute)
                         DatePicker("Ends", selection: $slot.end, displayedComponents: .hourAndMinute)
