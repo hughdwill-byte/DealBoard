@@ -8,7 +8,8 @@
 
 Browse by weekday, snap a photo of a deal board and let on-device text recognition
 fill in the details, and see every venue's specials grouped in one tidy view.
-No accounts, no cloud, no ads, no analytics — and completely free.
+No accounts, no ads, no analytics — completely free and offline-first, with
+**optional** cloud sharing so friends can follow the same board with a code.
 
 *Personal use only — not intended for the App Store.*
 
@@ -53,6 +54,8 @@ who's got what on tonight.
 - **Multiple time windows & prices**, an **All day** option, and a **6am day
   boundary** so late-night deals belong to the right night.
 - **Manual entry everywhere** — every automated step has a by-hand fallback.
+- **Optional cloud sharing** — create a board, share a code, and friends see and
+  sync the same deals (backed by Supabase; off by default — see below).
 - Warm, appetising design with full **Dark Mode**, **Dynamic Type**, and VoiceOver
   support.
 
