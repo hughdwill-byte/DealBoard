@@ -4,7 +4,8 @@ import SwiftData
 /// Establishments manager: list, add, edit, delete.
 struct EstablishmentsView: View {
     @Environment(\.modelContext) private var context
-    @Query(sort: \Establishment.name) private var establishments: [Establishment]
+    @Query(filter: #Predicate<Establishment> { !$0.isDeleted }, sort: \Establishment.name)
+    private var establishments: [Establishment]
 
     @State private var editing: Establishment?
     @State private var showingNew = false
@@ -31,7 +32,7 @@ struct EstablishmentsView: View {
                                         Text(address).font(.subheadline).foregroundStyle(Theme.secondaryText)
                                     }
                                     HStack(spacing: 12) {
-                                        Label("\(place.deals?.count ?? 0) deals", systemImage: "tag")
+                                        Label("\(place.deals?.filter { !$0.isDeleted }.count ?? 0) deals", systemImage: "tag")
                                         if place.hasLocation {
                                             Label("Located", systemImage: "mappin.circle.fill")
                                         }
@@ -80,7 +81,7 @@ struct EstablishmentsView: View {
     }
 
     private func delete(_ place: Establishment) {
-        context.delete(place)
+        DealStore.delete(place, in: context)
         Haptics.success()
     }
 }

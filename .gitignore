@@ -20,3 +20,6 @@ DealBoard.xcodeproj/xcuserdata/
 *.ipa
 *.dSYM.zip
 *.dSYM
+
+# Cloud sharing config (fill in from Supabase.example.plist)
+DealBoard/Resources/Supabase.plist

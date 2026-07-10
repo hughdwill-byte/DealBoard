@@ -14,6 +14,7 @@ struct DealBoardApp: App {
 
 struct RootView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         TabView {
@@ -23,7 +24,14 @@ struct RootView: View {
                 .tabItem { Label("Places", systemImage: "mappin.and.ellipse") }
         }
         .tint(Theme.accent)
-        .task { backfillDuplicatesOnce() }
+        .task {
+            CloudSharing.shared.context = context
+            backfillDuplicatesOnce()
+            await CloudSharing.shared.syncNow()   // no-op unless sharing is set up
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await CloudSharing.shared.syncNow() } }
+        }
     }
 
     /// One-time, non-destructive combine of duplicate saved deals. Guarded by a

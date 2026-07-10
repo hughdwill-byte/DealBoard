@@ -291,7 +291,9 @@ struct EstablishmentEditorView: View {
         target.notes = notes.isEmpty ? nil : notes
         target.latitude = latitude
         target.longitude = longitude
+        target.touch()
         Haptics.success()
+        CloudSharing.shared.scheduleSync()   // no-op unless sharing is active
         onSave?(target)
         dismiss()
     }

@@ -9,7 +9,8 @@ import CoreLocation
 struct EstablishmentPickerView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
-    @Query(sort: \Establishment.name) private var establishments: [Establishment]
+    @Query(filter: #Predicate<Establishment> { !$0.isDeleted }, sort: \Establishment.name)
+    private var establishments: [Establishment]
 
     let coordinate: CLLocationCoordinate2D?
     @Binding var selection: Establishment?

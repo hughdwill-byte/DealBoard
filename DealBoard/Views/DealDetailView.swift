@@ -116,8 +116,7 @@ struct DealDetailView: View {
         }
         .confirmationDialog("Delete this deal?", isPresented: $showingDeleteConfirm, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
-                ImageStore.delete(deal.imageFilename)
-                context.delete(deal)
+                DealStore.delete(deal, in: context)
                 Haptics.success()
                 dismiss()
             }

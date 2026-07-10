@@ -354,6 +354,7 @@ struct DealEditorView: View {
             DealMerger.syncLegacyFields(of: match)
             if match.imageFilename == nil { match.imageFilename = filename }
             else if let filename, filename != match.imageFilename { ImageStore.delete(filename) }
+            match.touch()
             finish(keepGoing: keepGoing)
             return
         }
@@ -377,6 +378,7 @@ struct DealEditorView: View {
         target.imageFilename = filename
         target.establishment = establishment
         DealMerger.syncLegacyFields(of: target)
+        target.touch()
 
         finish(keepGoing: keepGoing)
     }
@@ -398,6 +400,7 @@ struct DealEditorView: View {
 
     private func finish(keepGoing: Bool) {
         Haptics.success()
+        CloudSharing.shared.scheduleSync()   // no-op unless sharing is active
         if keepGoing {
             // Ready the form for the next deal at the same place. Keep the
             // establishment, photo and key points (often shared across a venue's

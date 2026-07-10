@@ -29,6 +29,10 @@ final class Deal {
     var imageFilename: String?
     var establishment: Establishment?
     var dateAdded: Date = Date()
+    /// Last local edit — the last-write-wins clock for cloud sharing.
+    var updatedAt: Date = Date()
+    /// Soft-delete tombstone (only used while sharing, so a delete propagates).
+    var isDeleted: Bool = false
 
     init(
         title: String = "",
@@ -57,7 +61,11 @@ final class Deal {
         self.imageFilename = imageFilename
         self.establishment = establishment
         self.dateAdded = Date()
+        self.updatedAt = Date()
     }
+
+    /// Mark as edited now (bumps the sync clock).
+    func touch() { updatedAt = Date() }
 
     /// Typed accessor over the stored raw string.
     var dealType: DealType {

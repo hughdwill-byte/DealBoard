@@ -17,6 +17,10 @@ final class Establishment {
     var latitude: Double?
     var longitude: Double?
     var notes: String?
+    /// Last local edit — the last-write-wins clock for cloud sharing.
+    var updatedAt: Date = Date()
+    /// Soft-delete tombstone (only used while sharing, so a delete propagates).
+    var isDeleted: Bool = false
 
     @Relationship(deleteRule: .nullify, inverse: \Deal.establishment)
     var deals: [Deal]? = []
@@ -35,7 +39,11 @@ final class Establishment {
         self.latitude = latitude
         self.longitude = longitude
         self.notes = notes
+        self.updatedAt = Date()
     }
+
+    /// Mark as edited now (bumps the sync clock).
+    func touch() { updatedAt = Date() }
 
     var coordinate: CLLocationCoordinate2D? {
         guard let latitude, let longitude else { return nil }

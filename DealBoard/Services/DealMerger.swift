@@ -62,7 +62,7 @@ enum DealMerger {
     /// after the first pass no duplicate keys remain, so further calls do nothing.
     @discardableResult
     static func mergeExisting(in context: ModelContext) -> Int {
-        let deals = (try? context.fetch(FetchDescriptor<Deal>())) ?? []
+        let deals = ((try? context.fetch(FetchDescriptor<Deal>())) ?? []).filter { !$0.isDeleted }
 
         var groups: [String: [Deal]] = [:]
         for deal in deals { groups[identityKey(deal), default: []].append(deal) }

@@ -8,11 +8,12 @@ import SwiftData
 /// lives inside one ScrollView so everything scrolls together as a unit.
 struct HomeView: View {
     @Environment(\.modelContext) private var context
-    @Query(sort: \Deal.title) private var allDeals: [Deal]
+    @Query(filter: #Predicate<Deal> { !$0.isDeleted }, sort: \Deal.title) private var allDeals: [Deal]
 
     @State private var selectedDay: Int = Weekday.today.rawValue
     @State private var typeFilter: DealType?
     @State private var showingAdd = false
+    @State private var showingShare = false
 
     /// Deals on the selected day matching the current type filter (individual level).
     private var dayDeals: [Deal] {
@@ -73,6 +74,10 @@ struct HomeView: View {
             .background(Theme.background)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { showingShare = true } label: { Image(systemName: "person.2") }
+                        .accessibilityLabel("Shared board")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showingAdd = true } label: { Image(systemName: "plus") }
                         .accessibilityLabel("Add deal")
@@ -80,6 +85,7 @@ struct HomeView: View {
             }
             .navigationDestination(for: Deal.self) { DealDetailView(deal: $0) }
             .sheet(isPresented: $showingAdd) { DealEditorView(deal: nil) }
+            .sheet(isPresented: $showingShare) { SharingView() }
         }
         .tint(Theme.accent)
     }
@@ -156,8 +162,7 @@ struct HomeView: View {
     }
 
     private func delete(_ deal: Deal) {
-        ImageStore.delete(deal.imageFilename)
-        context.delete(deal)
+        DealStore.delete(deal, in: context)
         Haptics.success()
     }
 }

@@ -100,10 +100,38 @@ DealBoard/
   Resources/Assets.xcassets App icon
 ```
 
+## Cloud sharing (optional)
+
+DealBoard can share a board with friends: one person creates a board, gets a
+short code, and anyone who enters that code sees and syncs the same deals. It's
+**entirely optional** — with no setup the app stays 100% offline and unchanged.
+
+It's backed by a free [Supabase](https://supabase.com) project (the only cloud
+dependency). To enable it:
+
+1. Create a free Supabase project.
+2. In the Supabase **SQL editor**, run [`docs/supabase-setup.sql`](docs/supabase-setup.sql)
+   to create the tables.
+3. Copy `DealBoard/Resources/Supabase.example.plist` to `Supabase.plist` (same
+   folder) and fill in your project **URL** and public **anon key** (Project
+   Settings ▸ API). `Supabase.plist` is gitignored so your keys aren't committed.
+4. Build & run. Tap the **people** icon on the home screen → *Create a shared
+   board* or *Join with code*.
+
+**How sync works:** per-record, last-write-wins on each deal's `updatedAt`, so two
+people adding different deals both keep them. Syncs on app open, after edits, and
+via *Sync now*.
+
+**Limitations (v1):** photos aren't synced yet (they stay on each device); there's
+no live/push updating (it syncs on open / on demand); and the group code is a light
+gate, not real security — anyone with the app's anon key could query other codes,
+so don't store anything sensitive. See the notes in the SQL file.
+
 ## Dependencies
 
-None. Apple frameworks only — SwiftUI, SwiftData, Vision, PhotosUI, ImageIO,
-CoreLocation, MapKit, UIKit.
+Apple frameworks only for everything core — SwiftUI, SwiftData, Vision, PhotosUI,
+ImageIO, CoreLocation, MapKit, UIKit. The optional cloud-sharing feature talks to
+Supabase over plain `URLSession` (no SDK).
 
 ## Backing up / moving to another phone
 
