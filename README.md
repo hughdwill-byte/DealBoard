@@ -66,10 +66,12 @@ photos, and browsing which places have deals on a given day. All data lives in a
 local [SwiftData](https://developer.apple.com/documentation/swiftdata) store;
 photos are saved to the app's Documents directory.
 
-The **only** networked feature is optional establishment enrichment (Apple Maps
-place lookup at a photo's location). It's non-blocking and degrades gracefully —
-offline it quietly falls back to nearby saved places and manual entry, and
-nothing else breaks. No cloud sync, no sign-in, no analytics, ever.
+Only two features use the network, and both are optional:
+
+- **Establishment enrichment**: an Apple Maps place lookup at a photo's location. It never blocks the app. When you're offline it falls back to nearby saved places and manual entry, and nothing else breaks.
+- **Cloud sharing**: off unless you configure it (see [below](#cloud-sharing-optional)).
+
+There are no accounts and no analytics.
 
 ## Build & run
 
@@ -138,7 +140,7 @@ Supabase over plain `URLSession` (no SDK).
 
 ## Backing up / moving to another phone
 
-There's no cloud, so your deals live only on your device. To copy everything
+Unless you set up cloud sharing, your deals live only on your device (and even with sharing, photos aren't synced). To copy everything
 (deals, places and photos) to another phone, use Xcode's **Window ▸ Devices and
 Simulators**: select the app, **Download Container…** from one phone, then
 **Replace Container…** onto the other. Keep that `.xcappdata` file as a backup.
